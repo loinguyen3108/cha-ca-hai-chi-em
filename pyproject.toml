@@ -1,0 +1,24 @@
+[build-system]
+build-backend = 'setuptools.build_meta'
+requires = ['setuptools']
+
+[project]
+name = 'cha-ca-hai-chi-em'
+dynamic = ['version']
+license = { file = 'LICENSE' }
+authors = [
+    { 'name' = 'Loi Nguyen', 'email' = 'ntloic3tbt@gmail.com' }
+]
+maintainers = [
+    { 'name' = 'Loi Nguyen', 'email' = 'ntloic3tbt@gmail.com' }
+]
+classifiers = [
+    'Programming Language :: Python :: 3',
+    'Operating System :: OS Independent'
+]
+description = 'Cha Ca Hai Chi Em'
+readme = 'README.md'
+requires-python = '>=3.11, <4'
+
+[tool.setuptools.packages.find]
+exclude = ['tests']
