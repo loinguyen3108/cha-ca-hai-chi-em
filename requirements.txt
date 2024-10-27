@@ -1,0 +1,10 @@
+flake8
+python-decouple
+psycopg2-binary==2.9.10
+requests==2.32.3
+SQLAlchemy==2.0.36
+Werkzeug==3.0.6
+uwsgi==2.0.28
+Flask==3.0.3
+Flask-Login==0.6.3
+python-dotenv==1.0.1
