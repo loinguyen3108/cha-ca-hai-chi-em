@@ -1,15 +1,12 @@
 from sqlalchemy import func
 
-from src.default import SQLALCHEMY_DATABASE_URI
 from src.models.user import User
-from src.repository import PostgresRepository
 from src.services import BaseService
 
 
 class UserService(BaseService):
     def __init__(self):
         super().__init__()
-        self.repo = PostgresRepository(SQLALCHEMY_DATABASE_URI)
 
     def create_user(self, username: str, password: str) -> User:
         self.logger.info(f'Creating user {username}')

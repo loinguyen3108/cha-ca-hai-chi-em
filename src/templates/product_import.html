@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Import Products</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+  <!-- Ensure Bootstrap JS is correctly loaded -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+          crossorigin="anonymous"></script>
+  <style>
+    body {
+        background-color: #FFE3E8;
+    }
+
+    .table th {
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    #import_date {
+        width: 30%;
+    }
+
+    #product-sku {
+        width: 15%;
+    }
+
+    #product-img-title {
+        width: 35%;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    #product-img {
+        width: 30%;
+        height: 25%;
+    }
+
+    #import-quantity-title {
+        width: 25%;
+    }
+
+    #import-quantity {
+        width: 30%;
+    }
+
+    .product-row {
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .navbar {
+        background-color: #FFF6D4;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+    }
+
+    .navbar-nav .nav-link {
+        color: #333;
+    }
+
+    .navbar-nav .nav-link:hover {
+        color: #0d6efd;
+    }
+
+    .content {
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+  </style>
+</head>
+<body>
+<div class="container-fluid">
+  <nav class="navbar navbar-expand-lg navbar-light">
+    <div class="container-fluid">
+      <a class="navbar-brand" aria-current="page" href="/"><h2>Cha Ca 79 Hai Chi Em</h2></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+              aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="/warehouse">Warehouse</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="#">Import</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Record Sales</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Dashboard</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="/logout">Logout</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid mt-4 content" style="margin margin-top: 0px;">
+    <form method="POST" action="/product/import">
+      <div class="mb-3">
+        <label for="import_date">
+          <b> Import Date: </b>
+        </label>
+        <input type="date" class="form-control" id="import_date" name="import_date" required>
+      </div>
+      <table class="table">
+        <thead>
+        <tr>
+          <th>ID</th>
+          <th>Product SKU</th>
+          <th>Image</th>
+          <th>Unit Price</th>
+          <th>Quantity</th>
+          <th>Total Price</th>
+        </tr>
+        </thead>
+        <tbody id="product-table">
+        </tbody>
+      </table>
+      <div style="text-align: right">
+        <button type="submit" class="btn btn-primary btn-lg">Submit Import</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Function to add a product row to the table
+  function addProductRow(product) {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+          <td id="product-id" class="product-row" name="product_${product.id}">${product.id}</td>
+          <td id="product-sku" class="product-row">${product.sku}</td>
+          <td id="product-img-title" class="product-row"><img id="product-img" src="${product.image_url}" alt="${product.name}"></td>
+          <td id="product-unit-price" class="product-row">${product.unit_price}</td>
+          <td id="import-quantity-title" class="product-row"><input id="import-quantity" type="number" value="0" name="product_quantity_${product.id}" required></td>
+          <td id="total_price_${product.id}" class="product-row">0</td>
+          <input type="hidden" name="product_unit_price_${product.id}" value="${product.unit_price}">
+      `;
+      document.getElementById('product-table').appendChild(row);
+
+      // Calculate total price on quantity change
+      const quantityInput = row.querySelector('input[name="product_quantity_' + product.id + '"]');
+      quantityInput.addEventListener('input', () => {
+          const totalPrice = product.unit_price * quantityInput.value;
+          row.querySelector(`#total_price_${product.id}`).textContent = totalPrice;
+      });
+
+      const form = document.querySelector('form');
+      form.addEventListener('submit', (event) => {
+          if (quantityInput.value < 0) {
+              event.preventDefault(); // Prevent form submission
+              alert('Quantity cannot be negative. Please enter a value greater than or equal to 0.');
+              quantityInput.focus(); // Focus on the invalid input field
+          }
+      });
+  }
+
+  function formatCurrency(value) {
+    return value.toLocaleString('en-US', { minimumFractionDigits: 2 });
+  }
+
+  // Fetch all products using GET method
+  fetch('/products', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    // Assuming the API response contains an array of products
+    data.forEach(product => addProductRow(product));
+  })
+  .catch(error => {
+    console.error('Error fetching products:', error);
+    // Handle errors gracefully, e.g., display an error message to the user
+  });
+
+</script>
+</body>
+</html>
