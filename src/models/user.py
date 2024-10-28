@@ -16,6 +16,9 @@ class User(Base, TimeTrackingMixin, UserMixin):
     username = Column(String(80), unique=True, nullable=False)
     password = Column(Text, nullable=False)
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}:{self.id}'
+
     def set_password(self, password):
         self.password = generate_password_hash(password)
 

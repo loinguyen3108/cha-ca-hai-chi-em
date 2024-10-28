@@ -1,11 +1,10 @@
 from urllib.parse import urlparse
 
 from sqlalchemy import create_engine, delete, pool, select, text, tuple_
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
 
+from src import SQLALCHEMY_DATABASE_URI
 from src.helpers.collections_ import check_not_empty, flatten, is_sequence
-from src.helpers.string import remove_apostrophe_string
 
 
 class PostgresSession:
@@ -26,9 +25,13 @@ class PostgresSession:
 
 
 class PostgresRepository:
-    def __init__(self, uri):
+    def __init__(self, uri=None):
+        uri = uri or SQLALCHEMY_DATABASE_URI
         self._parse_uri(uri)
         self.session = PostgresSession.create_scoped_session(uri)
+
+    def get_all(self, model_class):
+        return self.session.query(model_class).all()
 
     def bulk_insert(self, entities: list):
         try:
@@ -57,75 +60,11 @@ class PostgresRepository:
         return self.session.execute(text(query), params).mappings().all()
 
     def find(self, model_class, *criterion, **kwargs):
-        """Finds results based on the given criterion.
-         If results are very large ( > 10K), consider using `scan` method
-        :param model_class: The model class
-        :param criterion: One or more SQL criterion
-        :param kwargs:
-            - offset: The offset
-            - limit: The number of returned model instances
-            - order_by: The SQL order_by criterion to sort results
-            - relationship: Loading all model's relationships or not. Defaults `False`
-            - relationship_includes: Loading specific relationships list
-            - relationship_excludes: Excludes loading specific relationships list
-        :return: All found model instances
-        """
         return self._query(model_class, *criterion, **kwargs).scalars().all()
 
     def find_one(self, model_class, *criterion, **kwargs):
-        """ Find one model instance by given criteria
-        :param model_class: The model class
-        :param criterion: One or more SQL criterion
-        :param kwargs:
-            - offset: The offset
-            - limit: The number of returned model instances
-            - order_by: The SQL order_by criterion to sort results
-            - relationship: Loading all model's relationships or not. Defaults `False`
-            - relationship_includes: Loading specific relationships list
-            - relationship_excludes: Excludes loading specific relationships list
-        :return: First found model instance
-        """
         kwargs['limit'] = 1
         return self._query(model_class, *criterion, **kwargs).scalar_one_or_none()
-
-    def find_n_bulk_insert_on_conflict_do_nothing(self, model_instances, composite_keys):
-        """Find existing model instances first, then bulk insert only not existing model instances
-
-        This method will find existing model instances first, then bulk insert only not existing
-        model instances
-
-        :param model_instances: The list of model instances
-        :param composite_keys: The list of composite keys
-        """
-        try:
-            model = model_instances[0].__class__
-            model_values = self._make_values_by_composite_keys(model_instances, composite_keys)
-            instances_existing = self.find_by_composite_keys(model, composite_keys, model_values)
-            # Filter out not existing model instances by __eq__ method of model
-            instances_not_existing = [m for m in model_instances if m not in instances_existing]
-            if instances_not_existing:
-                self.bulk_insert(instances_not_existing)
-                self.commit()
-                return instances_existing + instances_not_existing
-            return instances_existing
-        except Exception:
-            self.rollback()
-            raise
-
-    @staticmethod
-    def _make_values_by_composite_keys(model_instances, composite_keys):
-        if len(composite_keys) == 0:
-            raise ValueError('composite_keys must be non-empty list')
-
-        if len(composite_keys) == 1:
-            return [remove_apostrophe_string(getattr(_, composite_keys[0].key))
-                    for _ in model_instances]
-
-        return [
-            tuple(remove_apostrophe_string(getattr(_, model_key.key))
-                  for model_key in composite_keys)
-            for _ in model_instances
-        ]
 
     def insert(self, entity):
         try:
@@ -135,27 +74,6 @@ class PostgresRepository:
         except Exception as e:
             self.rollback()
             raise e
-
-    def insert_many_on_conflict_do_nothing(self, model_instances, on_conflict_cols,
-                                           selected_fields=None, **kwargs):
-        try:
-            model_class = model_instances[0].__class__
-            for model_instance in model_instances:
-                if type(model_instance) is not model_class:
-                    raise ValueError(f'The {type(model_instance)} mismatch with {model_class}')
-
-            table = model_instances[0].__table__
-            insert_stmt = insert(table).values(
-                [_.to_dict(fields=selected_fields) for _ in model_instances]
-            )
-            do_insert_stmt = insert_stmt.on_conflict_do_nothing(
-                index_where=on_conflict_cols).returning(*table.columns)
-            ret = self.session.execute(do_insert_stmt, **kwargs).fetchall()
-            self.commit()
-            return [r._mapping for r in ret]
-        except Exception:
-            self.rollback()
-            raise
 
     def find_by_composite_keys(self, model_class, keys, values, **kwargs):
         """Find model instances by composite keys
@@ -294,22 +212,3 @@ class PostgresRepository:
         if kwargs:
             query = self._apply_query_options(query, **kwargs)
         return self.session.execute(query)
-
-    def _scan_by_id(self, model_class, *criterion, **kwargs):
-        """Scan by entity's ID."""
-        pks = model_class.primary_key_columns()
-        pks = tuple_(*pks) if len(pks) > 1 else pks[0]
-        kwargs['limit'] = kwargs.pop('batch_size')
-        kwargs['order_by'] = pks
-        last_id = kwargs.pop('last_id', None)
-        while True:
-            if last_id is None:
-                models = self.find(model_class, *criterion, **kwargs)
-            else:
-                models = self.find(model_class, pks > last_id, *criterion, **kwargs)
-            if models:
-                for each in models:
-                    last_id = each.identity()
-                    yield each
-            else:
-                break

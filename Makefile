@@ -3,7 +3,6 @@
 
 build-chaca:
 	docker build -t chaca-platform:local .
-	docker compose down
 
 install:
 	pip install -e .
