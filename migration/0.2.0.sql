@@ -8,10 +8,10 @@ CREATE TABLE IF NOT EXISTS public.product (
     unit_price    DECIMAL(10, 2)  NOT NULL,
     sale_price    DECIMAL(10, 2)  NOT NULL,
     description   TEXT,
-    image_url     TEXT            NOT NULL
+    image_url     TEXT            NOT NULL,
     stock_quantity INTEGER        NOT NULL  DEFAULT 0
 );
-CREATE UNIQUE INDEX IF NOT EXISTS product_upper_sku ON public.product (UPPER(sku));
+CREATE UNIQUE INDEX IF NOT EXISTS product_upper_sku ON public.product (sku);
 
 
 CREATE TABLE IF NOT EXISTS public.importer (
