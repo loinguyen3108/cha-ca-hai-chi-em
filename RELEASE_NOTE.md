@@ -9,6 +9,6 @@
 python src/cli/product.py -f migration/baseline/product.csv
 ```
 
-## 1.0.0
+## 0.1.0
 
 1. Execute the SQL file in `migration/0.1.0.sql` to create the table `users`.

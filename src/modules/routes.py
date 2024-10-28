@@ -82,9 +82,11 @@ def product_import():
         importer_service = ImporterService()
         import_line_service = ImportLineService()
         product_service = ProductService()
-        import_date = request.form['import_date']
-        importer = importer_service.create_importer(
-            {'imported_at': import_date, 'imported_by': current_user.id})
+
+        importer = importer_service.create_importer({
+            'imported_at': request.form['import_date'],
+            'imported_by': current_user.id
+        })
 
         import_lines_mapped = {}
         for k, v in request.form.items():
