@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DATE, Integer, Sequence, SmallInteger
+from sqlalchemy import Column, DATE, Integer, Numeric, Sequence, SmallInteger
 from sqlalchemy.orm import relationship
 
 from src.models.base import Base, TimeTrackingMixin
@@ -14,6 +14,7 @@ class Importer(Base, TimeTrackingMixin):
     id = Column(Integer, Sequence('importer_id_seq'), primary_key=True)
     imported_at = Column(DATE, nullable=False)
     imported_by = Column(Integer, nullable=False)
+    other_expenses = Column(Numeric(10, 2), nullable=True)
     status = Column(SmallInteger, nullable=False, default=STATUS_PENDING)
 
     import_lines = relationship('ImportLine', back_populates='importer')

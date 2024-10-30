@@ -22,19 +22,12 @@
         width: 30%;
     }
 
+    #other_expenses {
+        width: 30%;
+    }
+
     #product-name {
-        width: 25%;
-    }
-
-    #product-img-title {
-        width: 25%;
-        text-align: center;
-        vertical-align: middle;
-    }
-
-    #product-img {
-        width: 25%;
-        height: 25%;
+        width: 35%;
     }
 
     #import-quantity-title {
@@ -42,7 +35,7 @@
     }
 
     #import-quantity {
-        width: 35%;
+        width: 45%;
     }
 
     .product-row {
@@ -114,12 +107,17 @@
         </label>
         <input type="date" class="form-control" id="import_date" name="import_date" required>
       </div>
+      <div class="mb-3">
+        <label for="other_expenses">
+          <b> Other expenses: </b>
+        </label>
+        <input type="number" class="form-control" id="other_expenses" name="other_expenses" value="0" required>
+      </div>
       <table class="table">
         <thead>
         <tr>
           <th>ID</th>
           <th>Product Name</th>
-          <th>Image</th>
           <th>Unit Price</th>
           <th>Quantity</th>
           <th>Total Price</th>
@@ -142,7 +140,6 @@
       row.innerHTML = `
           <td id="product-id" class="product-row" name="product_${product.id}">${product.id}</td>
           <td id="product-name" class="product-row">${product.name}</td>
-          <td id="product-img-title" class="product-row"><img id="product-img" src="${product.image_url}" alt="${product.name}"></td>
           <td id="product-unit-price" class="product-row">${product.unit_price}</td>
           <td id="import-quantity-title" class="product-row"><input id="import-quantity" type="number" value="0" name="product_quantity_${product.id}" required></td>
           <td id="total_price_${product.id}" class="product-row">0</td>

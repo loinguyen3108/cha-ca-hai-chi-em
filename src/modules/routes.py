@@ -84,8 +84,8 @@ def product_import():
         product_service = ProductService()
 
         importer = importer_service.create_importer({
-            'imported_at': request.form['import_date'],
-            'imported_by': current_user.id
+            'imported_at': request.form['import_date'], 'imported_by': current_user.id,
+            'other_expenses': request.form['other_expenses']
         })
 
         import_lines_mapped = {}
@@ -113,9 +113,7 @@ def product_import():
 
                 import_lines_dict.append({
                     'importer_id': importer.id, 'product_id': product_id,
-                    'quantity': import_line['quantity'],
-                    'unit_price': import_line['unit_price'],
-                    'total_price': import_line['quantity'] * import_line['unit_price']
+                    'quantity': import_line['quantity'], 'unit_price': import_line['unit_price']
                 })
             if not import_lines_dict:
                 raise ValueError('No any records to import! Please check your input data.')
