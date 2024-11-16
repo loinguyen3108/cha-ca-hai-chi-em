@@ -6,7 +6,7 @@ class ImporterService(BaseService):
     def __init__(self):
         super().__init__()
 
-    def create_importer(self, importer_dict):
+    def create_importer(self, importer_dict: dict) -> Importer:
         if not importer_dict:
             raise ValueError('importer_dict is required')
 

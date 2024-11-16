@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Import Products</title>
+  <title>Sale Tracking</title>
   <link rel="icon" href="http://learnanything318.ddns.net:10000/chaca2chiem-public/image-prod/chaca_icon.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
@@ -31,11 +31,11 @@
         width: 35%;
     }
 
-    #import-quantity-title {
+    #order-quantity-title {
         width: 25%;
     }
 
-    #import-quantity {
+    #order-quantity {
         width: 45%;
     }
 
@@ -82,10 +82,10 @@
             <a class="nav-link" href="/warehouse">Warehouse</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link active" href="#">Import</a>
+            <a class="nav-link" href="/product/import">Import</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/order/tracking">Record Sales</a>
+            <a class="nav-link active" href="#">Record Sales</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="#">Dashboard</a>
@@ -101,25 +101,24 @@
   </nav>
 
   <div class="container-fluid mt-4 content" style="margin margin-top: 0px;">
-    <form method="POST" action="/product/import">
+    <form method="POST" action="/order/tracking">
       <div class="mb-3">
-        <label for="import_date">
-          <b> Import Date: </b>
+        <label for="ordered_date">
+          <b> Order Date: </b>
         </label>
-        <input type="date" class="form-control" id="import_date" name="import_date" required>
+        <input type="date" class="form-control" id="ordered_date" name="ordered_date" required>
       </div>
       <div class="mb-3">
-        <label for="other_expenses">
-          <b> Other expenses: </b>
-        </label>
-        <input type="number" class="form-control" id="other_expenses" name="other_expenses" value="0" required>
+        <label for="customer">Customer:</label>
+        <input type="text" class="form-control" id="customer" name="customer" placeholder="Search for a customer">
+        <div id="customer-list"></div>
       </div>
       <table class="table">
         <thead>
         <tr>
           <th>ID</th>
           <th>Product Name</th>
-          <th>Unit Price</th>
+          <th>Sale Price</th>
           <th>Quantity</th>
           <th>Total Price</th>
         </tr>
@@ -128,7 +127,7 @@
         </tbody>
       </table>
       <div style="text-align: right">
-        <button type="submit" class="btn btn-primary btn-lg">Submit Import</button>
+        <button type="submit" class="btn btn-primary btn-lg">Submit Order</button>
       </div>
     </form>
   </div>
@@ -141,17 +140,17 @@
       row.innerHTML = `
           <td id="product-id" class="product-row" name="product_${product.id}">${product.id}</td>
           <td id="product-name" class="product-row">${product.name}</td>
-          <td id="product-unit-price" class="product-row">${product.unit_price}</td>
-          <td id="import-quantity-title" class="product-row"><input id="import-quantity" type="number" value="0" name="product_quantity_${product.id}" required></td>
+          <td id="product-sale-price" class="product-row">${product.sale_price}</td>
+          <td id="order-quantity-title" class="product-row"><input id="order-quantity" type="number" value="0" name="product_quantity_${product.id}" required></td>
           <td id="total_price_${product.id}" class="product-row">0</td>
-          <input type="hidden" name="product_unit_price_${product.id}" value="${product.unit_price}">
+          <input type="hidden" name="product_sale_price_${product.id}" value="${product.sale_price}">
       `;
       document.getElementById('product-table').appendChild(row);
 
       // Calculate total price on quantity change
       const quantityInput = row.querySelector('input[name="product_quantity_' + product.id + '"]');
       quantityInput.addEventListener('input', () => {
-          const totalPrice = product.unit_price * quantityInput.value;
+          const totalPrice = product.sale_price * quantityInput.value;
           row.querySelector(`#total_price_${product.id}`).textContent = totalPrice;
       });
 
@@ -185,6 +184,53 @@
     console.error('Error fetching products:', error);
     // Handle errors gracefully, e.g., display an error message to the user
   });
+
+  // Fetch all customers using GET method
+  const customerInput = document.getElementById('customer');
+  const customerList = document.getElementById('customer-list');
+
+  async function fetchCustomers() {
+    try {
+      const response = await fetch('/customers');
+      const customers = await response.json();
+      return customers;
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      // Handle error, e.g., display an error message to the user
+      return [];
+    }
+  }
+
+  function filterCustomers(customers, searchTerm) {
+    return customers.filter(customer => customer.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }
+
+  function displayCustomers(customers) {
+    customerList.innerHTML = '';
+    customers.forEach(customer => {
+      const listItem = document.createElement('li');
+      listItem.classList.add('list-group-item');
+      listItem.textContent = customer.name;
+      listItem.addEventListener('click', () => {
+        customerInput.value = customer.name;
+        customerList.innerHTML = '';
+      });
+      customerList.appendChild(listItem);
+    });
+  }
+
+  async function handleInput() {
+    const searchTerm = customerInput.value;
+    const customers = await fetchCustomers();
+    if (searchTerm.trim() === '') {
+      customerList.innerHTML = '';
+    } else {
+      const filteredCustomers = filterCustomers(customers, searchTerm);
+      displayCustomers(filteredCustomers);
+    }
+  }
+
+  customerInput.addEventListener('input', handleInput);
 
 </script>
 </body>

@@ -4,6 +4,7 @@ from typing import List
 from tqdm import tqdm
 
 from src.models import ImportLine
+from src.models.order_line import OrderLine
 from src.models.product import Product
 from src.services import BaseService
 
@@ -36,6 +37,14 @@ class ProductService(BaseService):
         for import_line in import_lines:
             product = self.repo.find_one(Product, Product.id == import_line.product_id)
             product.stock_quantity += import_line.quantity
+            self.repo.upsert(product)
+        self.logger.info('Stock quantity updated!')
+
+    def update_stock_quantity_from_order_lines(self, order_lines: List[OrderLine]):
+        self.logger.info(f'Updating stock quantity from {len(order_lines)} order lines')
+        for order_line in order_lines:
+            product = self.repo.find_one(Product, Product.id == order_line.product_id)
+            product.stock_quantity -= order_line.quantity
             self.repo.upsert(product)
         self.logger.info('Stock quantity updated!')
 
