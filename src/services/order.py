@@ -31,6 +31,10 @@ class OrderService(BaseService):
         return self.repo.upsert(order)
 
     def create_order_from_request_form(self, request_form, current_user):
+        customer = request_form.form.get('customer')
+        if not customer:
+            raise ValueError('Customer is required!')
+
         customer = self.customer_service.create_customer(**{'name': request_form.form['customer']})
 
         order = self.create_order({
