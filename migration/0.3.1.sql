@@ -1,6 +1,6 @@
 -- 0.3.1
 ALTER TABLE public.order_line
-ADD COLUMN discount DECIMAL(10,2) NOT NULL DEFAULT 0.0,
+ADD COLUMN discount DECIMAL(10,2) NOT NULL DEFAULT 0.0 CHECK (discount >= 0),
 ADD COLUMN net_total_price DECIMAL(10,2) NOT NULL DEFAULT 0.0;
 
 ALTER TABLE public.order_line

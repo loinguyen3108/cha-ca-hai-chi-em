@@ -192,7 +192,7 @@
   function updateTotalOrderPrice() {
       let totalOrderPrice = 0;
       document.querySelectorAll('[id^="total_price_"]').forEach(totalPriceCell => {
-          totalOrderPrice += parseFloat(totalPriceCell.textContent);
+          totalOrderPrice += Math.round((parseFloat(totalPriceCell.textContent) + Number.EPSILON) * 100) / 100;
       });
       document.getElementById('total-order-price').textContent = totalOrderPrice;
   }
