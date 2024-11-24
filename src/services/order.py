@@ -51,6 +51,8 @@ class OrderService(BaseService):
                     order_lines_mapped[product_id]['quantity'] = int(v)
                 if 'sale_price' in k:
                     order_lines_mapped[product_id]['sale_price'] = float(v)
+                if 'discount' in k:
+                    order_lines_mapped[product_id]['discount'] = float(v)
 
         order_lines = self._process_order_lines(order_lines_mapped, order)
         order.status = Order.STATUS_SUCCESS
@@ -74,8 +76,8 @@ class OrderService(BaseService):
                 continue
 
             order_lines_dict.append({
-                'order_id': order.id, 'product_id': product_id,
-                'quantity': order_line['quantity'], 'sale_price': order_line['sale_price']
+                'order_id': order.id, 'product_id': product_id, 'quantity': order_line['quantity'],
+                'sale_price': order_line['sale_price'], 'discount': order_line.get('discount', 0)
             })
         if not order_lines_dict:
             raise ValueError('No any records to import! Please check your input data.')
