@@ -126,6 +126,12 @@
         </thead>
         <tbody id="product-table">
         </tbody>
+        <tfoot>
+        <tr>
+          <td colspan="4" style="text-align: right;"><b>Total Import Price:</b></td>
+          <td id="total-import-price" class="product-row">0</td>
+        </tr>
+        </tfoot>
       </table>
       <div style="text-align: right">
         <button type="submit" class="btn btn-primary btn-lg">Submit Import</button>
@@ -150,19 +156,24 @@
 
       // Calculate total price on quantity change
       const quantityInput = row.querySelector('input[name="product_quantity_' + product.id + '"]');
-      quantityInput.addEventListener('input', () => {
-          const totalPrice = product.unit_price * quantityInput.value;
+      function calculateTotalPrice() {
+          const quantity = quantityInput.value;
+          const totalPrice = product.unit_price * quantity;
           row.querySelector(`#total_price_${product.id}`).textContent = totalPrice;
-      });
+          updateTotalImportPrice();
+      }
+      quantityInput.addEventListener('input', calculateTotalPrice);
+  }
 
-      const form = document.querySelector('form');
-      form.addEventListener('submit', (event) => {
-          if (quantityInput.value < 0) {
-              event.preventDefault(); // Prevent form submission
-              alert('Quantity cannot be negative. Please enter a value greater than or equal to 0.');
-              quantityInput.focus(); // Focus on the invalid input field
-          }
+  document.getElementById('other_expenses').addEventListener('input', updateTotalImportPrice);
+
+  function updateTotalImportPrice() {
+      let totalImportPrice = 0;
+      document.querySelectorAll('[id^="total_price_"]').forEach(totalPriceCell => {
+          totalImportPrice += parseFloat(totalPriceCell.textContent);
       });
+      const otherExpenses = parseFloat(document.getElementById('other_expenses').value) || 0;
+      document.getElementById('total-import-price').textContent = (totalImportPrice + otherExpenses);
   }
 
   function formatCurrency(value) {
