@@ -19,11 +19,11 @@
       vertical-align: middle;
     }
 
-    #import_date {
+    #ordered_date {
         width: 30%;
     }
 
-    #other_expenses {
+    #customer {
         width: 30%;
     }
 
@@ -36,7 +36,11 @@
     }
 
     #order-quantity {
-        width: 45%;
+        width: 30%;
+    }
+
+    #discount {
+        width: 30%;
     }
 
     .product-row {
@@ -109,7 +113,9 @@
         <input type="date" class="form-control" id="ordered_date" name="ordered_date" required>
       </div>
       <div class="mb-3">
-        <label for="customer">Customer:</label>
+        <label for="customer">
+          <b> Customer: </b>
+        </label>
         <input type="text" class="form-control" id="customer" name="customer" placeholder="Search for a customer">
         <div id="customer-list"></div>
       </div>
@@ -120,11 +126,18 @@
           <th>Product Name</th>
           <th>Sale Price</th>
           <th>Quantity</th>
+          <th>Discount (Price)</th>
           <th>Total Price</th>
         </tr>
         </thead>
         <tbody id="product-table">
         </tbody>
+        <tfoot>
+        <tr>
+          <td colspan="5" style="text-align: right;"><b>Total Order Price:</b></td>
+          <td id="total-order-price" class="product-row">0</td>
+        </tr>
+        </tfoot>
       </table>
       <div style="text-align: right">
         <button type="submit" class="btn btn-primary btn-lg">Submit Order</button>
@@ -142,6 +155,7 @@
           <td id="product-name" class="product-row">${product.name}</td>
           <td id="product-sale-price" class="product-row">${product.sale_price}</td>
           <td id="order-quantity-title" class="product-row"><input id="order-quantity" type="number" value="0" name="product_quantity_${product.id}" required></td>
+          <td id="discount-title" class="product-row"><input id="discount" type="number" value="0" name="product_discount_${product.id}" required></td>
           <td id="total_price_${product.id}" class="product-row">0</td>
           <input type="hidden" name="product_sale_price_${product.id}" value="${product.sale_price}">
       `;
@@ -149,19 +163,38 @@
 
       // Calculate total price on quantity change
       const quantityInput = row.querySelector('input[name="product_quantity_' + product.id + '"]');
-      quantityInput.addEventListener('input', () => {
-          const totalPrice = product.sale_price * quantityInput.value;
+      const discountInput = row.querySelector('input[name="product_discount_' + product.id + '"]');
+      function calculateTotalPrice() {
+          const quantity = quantityInput.value;
+          const discount = discountInput.value;
+          const totalPrice = (product.sale_price * quantity) - discount;
           row.querySelector(`#total_price_${product.id}`).textContent = totalPrice;
-      });
+          updateTotalOrderPrice();
+      }
+      quantityInput.addEventListener('input', calculateTotalPrice);
+      discountInput.addEventListener('input', calculateTotalPrice);
+
 
       const form = document.querySelector('form');
       form.addEventListener('submit', (event) => {
-          if (quantityInput.value < 0) {
-              event.preventDefault(); // Prevent form submission
-              alert('Quantity cannot be negative. Please enter a value greater than or equal to 0.');
-              quantityInput.focus(); // Focus on the invalid input field
+          if (quantityInput.value < 0 || discountInput.value < 0) {
+              event.preventDefault();
+              alert('Quantity and discount cannot be negative. Please enter values greater than or equal to 0.');
+              if (quantityInput.value < 0) {
+                  quantityInput.focus();
+              } else {
+                  discountInput.focus();
+              }
           }
       });
+  }
+
+  function updateTotalOrderPrice() {
+      let totalOrderPrice = 0;
+      document.querySelectorAll('[id^="total_price_"]').forEach(totalPriceCell => {
+          totalOrderPrice += Math.round((parseFloat(totalPriceCell.textContent) + Number.EPSILON) * 100) / 100;
+      });
+      document.getElementById('total-order-price').textContent = totalOrderPrice;
   }
 
   function formatCurrency(value) {

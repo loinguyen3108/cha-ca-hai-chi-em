@@ -15,7 +15,9 @@ class OrderLine(Base, TimeTrackingMixin):
     product_id = Column(Integer, primary_key=True)
     quantity = Column(Integer, nullable=False)
     sale_price = Column(Numeric(10, 2), nullable=False)
-    total_price = Column(Numeric(10, 2), nullable=False)
+    discount = Column(Numeric(10, 2), nullable=False)
+    net_total_price = Column(Numeric(10, 2), nullable=False)
+    gross_total_price = Column(Numeric(10, 2), nullable=False)
 
     order = relationship('Order', back_populates='order_lines')
 
@@ -25,6 +27,6 @@ class OrderLine(Base, TimeTrackingMixin):
     def __repr__(self):
         return f'{self.__class__.__name__}:{self.id}'
 
-    def calculate_total_price(self):
-        self.total_price = self.sale_price * self.quantity
-        return self.total_price
+    def set_total_price(self):
+        self.net_total_price = (self.sale_price * self.quantity) - self.discount
+        self.gross_total_price = self.sale_price * self.quantity

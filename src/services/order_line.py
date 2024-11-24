@@ -12,7 +12,7 @@ class OrderLineService(BaseService):
         order_lines = []
         for order_line_dict in order_lines_dict:
             order_line = OrderLine(**order_line_dict)
-            order_line.calculate_total_price()
+            order_line.set_total_price()
             order_lines.append(order_line)
         self.repo.bulk_insert(order_lines)
         return order_lines
