@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 from sqlalchemy import create_engine, delete, pool, select, text, tuple_
 from sqlalchemy.orm import joinedload, scoped_session, sessionmaker
 
-from src import SQLALCHEMY_DATABASE_URI
+from src.default import SQLALCHEMY_DATABASE_URI
 from src.helpers.collections_ import check_not_empty, flatten, is_sequence
 
 
@@ -68,9 +68,9 @@ class PostgresRepository:
 
     def insert(self, entity):
         try:
-            result = self.session.add(entity)
+            self.session.add(entity)
             self.commit()
-            return result
+            return entity
         except Exception as e:
             self.rollback()
             raise e

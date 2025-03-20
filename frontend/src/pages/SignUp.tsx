@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -7,49 +7,45 @@ import {
   TextField,
   Button,
   Link,
-  Paper,
   Alert,
+  Paper,
 } from '@mui/material';
 import { useFormik } from 'formik';
-import * as yup from 'yup';
-import { useAuth } from '../hooks/useAuth';
+import * as Yup from 'yup';
+import { authAPI } from '../services/api';
 
-const validationSchema = yup.object({
-  username: yup
-    .string()
-    .required('Username is required')
-    .min(3, 'Username must be at least 3 characters'),
-  email: yup
-    .string()
-    .email('Enter a valid email')
-    .required('Email is required'),
-  password: yup
-    .string()
-    .required('Password is required')
-    .min(6, 'Password must be at least 6 characters'),
-  confirmPassword: yup
-    .string()
-    .required('Please confirm your password')
-    .oneOf([yup.ref('password')], 'Passwords must match'),
+const validationSchema = Yup.object({
+  username: Yup.string()
+    .min(3, 'Username must be at least 3 characters')
+    .required('Username is required'),
+  password: Yup.string()
+    .min(6, 'Password must be at least 6 characters')
+    .required('Password is required'),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref('password')], 'Passwords must match')
+    .required('Confirm password is required'),
 });
 
-export default function Register() {
-  const { register } = useAuth();
-  const [error, setError] = useState<string | null>(null);
+export const SignUp: React.FC = () => {
+  const [error, setError] = useState<string>('');
+  const navigate = useNavigate();
 
   const formik = useFormik({
     initialValues: {
       username: '',
-      email: '',
       password: '',
       confirmPassword: '',
     },
-    validationSchema: validationSchema,
+    validationSchema,
     onSubmit: async (values) => {
       try {
-        await register(values.username, values.email, values.password);
-      } catch (err) {
-        setError('Registration failed. Please try again.');
+        await authAPI.register({
+          username: values.username,
+          password: values.password,
+        });
+        navigate('/signin', { state: { message: 'Registration successful! Please sign in.' } });
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to sign up');
       }
     },
   });
@@ -75,13 +71,15 @@ export default function Register() {
           }}
         >
           <Typography component="h1" variant="h5">
-            Sign up
+            Sign Up
           </Typography>
+
           {error && (
             <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
               {error}
             </Alert>
           )}
+
           <Box
             component="form"
             onSubmit={formik.handleSubmit}
@@ -89,11 +87,10 @@ export default function Register() {
           >
             <TextField
               margin="normal"
-              required
               fullWidth
               id="username"
-              label="Username"
               name="username"
+              label="Username"
               autoComplete="username"
               autoFocus
               value={formik.values.username}
@@ -101,62 +98,48 @@ export default function Register() {
               error={formik.touched.username && Boolean(formik.errors.username)}
               helperText={formik.touched.username && formik.errors.username}
             />
+
             <TextField
               margin="normal"
-              required
               fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              value={formik.values.email}
-              onChange={formik.handleChange}
-              error={formik.touched.email && Boolean(formik.errors.email)}
-              helperText={formik.touched.email && formik.errors.email}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
+              id="password"
               name="password"
               label="Password"
               type="password"
-              id="password"
               autoComplete="new-password"
               value={formik.values.password}
               onChange={formik.handleChange}
               error={formik.touched.password && Boolean(formik.errors.password)}
               helperText={formik.touched.password && formik.errors.password}
             />
+
             <TextField
               margin="normal"
-              required
               fullWidth
+              id="confirmPassword"
               name="confirmPassword"
               label="Confirm Password"
               type="password"
-              id="confirmPassword"
+              autoComplete="new-password"
               value={formik.values.confirmPassword}
               onChange={formik.handleChange}
-              error={
-                formik.touched.confirmPassword &&
-                Boolean(formik.errors.confirmPassword)
-              }
-              helperText={
-                formik.touched.confirmPassword && formik.errors.confirmPassword
-              }
+              error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
+              helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
             />
+
             <Button
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
+              disabled={formik.isSubmitting}
             >
               Sign Up
             </Button>
+
             <Box sx={{ textAlign: 'center' }}>
-              <Link component={RouterLink} to="/login" variant="body2">
-                {'Already have an account? Sign in'}
+              <Link component={RouterLink} to="/signin" variant="body2">
+                {"Already have an account? Sign In"}
               </Link>
             </Box>
           </Box>
@@ -164,4 +147,4 @@ export default function Register() {
       </Box>
     </Container>
   );
-} 
+}; 

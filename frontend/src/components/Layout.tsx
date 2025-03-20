@@ -25,7 +25,7 @@ import {
   Warehouse as WarehouseIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import AnimatedFish from './AnimatedFish';
 
 // Responsive breakpoints
@@ -54,7 +54,7 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const handleDrawerToggle = () => {
     if (isMobile) {
@@ -217,19 +217,26 @@ export default function Layout() {
           zIndex: theme.zIndex.drawer + 1,
         }}
       >
-        <Toolbar sx={{ position: 'relative' }}>
-          <IconButton
-            color="inherit"
-            aria-label="toggle drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, zIndex: 2 }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ zIndex: 2 }}>
-            Cha Ca Hai Chi Em
-          </Typography>
+        <Toolbar sx={{ position: 'relative', display: 'flex', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', zIndex: 2 }}>
+            <IconButton
+              color="inherit"
+              aria-label="toggle drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div">
+              Cha Ca Hai Chi Em
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', zIndex: 2 }}>
+            <Typography variant="body1" sx={{ mr: 2, fontWeight: 500 }}>
+              {user?.username}
+            </Typography>
+          </Box>
           <AnimatedFish />
         </Toolbar>
       </AppBar>

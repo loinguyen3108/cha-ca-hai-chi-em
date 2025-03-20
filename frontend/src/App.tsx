@@ -1,11 +1,12 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout, PrivateRoute } from './components';
-import { AuthProvider } from './hooks/useAuth';
+import { AuthProvider } from './contexts/AuthContext';
 import {
   Login,
   Register,
@@ -49,7 +50,7 @@ const theme = createTheme({
 
 const queryClient = new QueryClient();
 
-function App() {
+const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
@@ -59,8 +60,8 @@ function App() {
             <AuthProvider>
               <Routes>
                 {/* Public routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
+                <Route path="/signin" element={<Login />} />
+                <Route path="/signup" element={<Register />} />
                 
                 {/* Protected routes with layout */}
                 <Route element={<PrivateRoute />}>
@@ -78,6 +79,6 @@ function App() {
       </ThemeProvider>
     </QueryClientProvider>
   );
-}
+};
 
 export default App;

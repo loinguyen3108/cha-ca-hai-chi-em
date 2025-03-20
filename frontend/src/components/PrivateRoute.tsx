@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function PrivateRoute() {
   const { user, loading } = useAuth();
@@ -9,7 +9,7 @@ export default function PrivateRoute() {
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/signin" />;
   }
 
   return <Outlet />;

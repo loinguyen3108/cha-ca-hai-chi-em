@@ -1,6 +1,6 @@
 from logging import getLogger
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for, jsonify
 from flask_login import current_user, login_required, login_user, logout_user
 
 from src.services.user import UserService
@@ -11,45 +11,86 @@ user_service = UserService()
 logger = getLogger(__name__)
 
 
-@blueprint.route('/login', methods=['GET', 'POST'])
+@blueprint.route('/auth/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        if not (username and password):
-            return 'Username and password are required!', 400
+    data = request.get_json()
+    if not data:
+        return jsonify({'message': 'No data provided'}), 400
 
-        user = user_service.get_user_by_username(username)
-        if not user or not user.check_password(password):
-            return 'Invalid username or password!', 400
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not (username and password):
+        return jsonify({'message': 'Username and password are required!'}), 400
 
-        login_user(user)
-        return redirect(url_for('ChaCa.index'))
-    return render_template('login.html')
+    user = user_service.get_user_by_username(username)
+    if not user or not user.check_password(password):
+        return jsonify({
+            'success': False,
+            'message': 'Invalid username or password!',
+            'isAuthenticated': False
+        }), 401
+
+    # Set permanent session
+    login_user(user, remember=True)
+    
+    return jsonify({
+        'success': True,
+        'message': 'Login successful',
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'isAuthenticated': True
+        },
+        'redirect': '/dashboard'
+    }), 200
 
 
-@blueprint.route('/register', methods=['GET', 'POST'])
+@blueprint.route('/auth/register', methods=['POST'])
 def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        if not (username and password):
-            return 'Username and password are required!', 400
+    data = request.get_json()
+    if not data:
+        return jsonify({'message': 'No data provided'}), 400
 
-        if user_service.get_user_by_username(username):
-            return 'User already exists!', 400
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not (username and password):
+        return jsonify({'message': 'Username and password are required!'}), 400
 
-        user_service.create_user(username, password)
-        return redirect(url_for('ChaCa.login'))
+    if user_service.get_user_by_username(username):
+        return jsonify({'message': 'User already exists!'}), 409
 
-    return render_template('register.html')
+    user = user_service.create_user(username, password)
+    return jsonify({
+        'message': 'Registration successful',
+        'user': {
+            'id': user.id,
+            'username': user.username
+        }
+    }), 201
 
 
-@blueprint.route('/logout')
+@blueprint.route('/auth/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('ChaCa.login'))
+    return jsonify({
+        'message': 'Logout successful'
+    }), 200
+
+
+@blueprint.route('/auth/user', methods=['GET'])
+@login_required
+def get_current_user():
+    return jsonify({
+        'success': True,
+        'user': {
+            'id': current_user.id,
+            'username': current_user.username,
+            'isAuthenticated': True
+        }
+    }), 200
 
 
 @blueprint.route('/', methods=['GET'])
