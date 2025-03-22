@@ -14,13 +14,16 @@ import {
   useTheme,
   useMediaQuery,
   Autocomplete,
+  Snackbar,
+  Alert,
 } from '@mui/material';
+import { customerAPI, authAPI } from '../services/api';
+import axios from 'axios';
 
 interface Product {
   id: number;
   name: string;
   sale_price: number;
-  stock_quantity: number;
 }
 
 interface Customer {
@@ -39,116 +42,49 @@ export default function Tracking() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   const [orderDate, setOrderDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([
-    { id: 1, name: 'Nguyen Van A' },
-    { id: 2, name: 'Tran Thi B' },
-    { id: 3, name: 'Le Van C' },
-    { id: 4, name: 'Pham Thi D' },
-    { id: 5, name: 'Hoang Van E' },
-    { id: 6, name: 'Mai Thi F' },
-    { id: 7, name: 'Dang Van G' },
-    { id: 8, name: 'Bui Thi H' },
-    { id: 9, name: 'Do Van I' },
-    { id: 10, name: 'Ngo Thi K' },
-  ]);
-  const [products, setProducts] = useState<TrackProduct[]>([
-    {
-      id: 1,
-      name: 'Cha Ca Thang Long',
-      sale_price: 150000,
-      stock_quantity: 100,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    },
-    {
-      id: 2,
-      name: 'Cha Ca La Vong',
-      sale_price: 180000,
-      stock_quantity: 80,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    },
-    {
-      id: 3,
-      name: 'Cha Ca Truc Bach',
-      sale_price: 160000,
-      stock_quantity: 90,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    },
-    {
-      id: 4,
-      name: 'Cha Ca Lang',
-      sale_price: 140000,
-      stock_quantity: 120,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    },
-    {
-      id: 5,
-      name: 'Cha Ca Ha Noi',
-      sale_price: 170000,
-      stock_quantity: 85,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    },
-    {
-      id: 6,
-      name: 'Cha Ca Pho Co',
-      sale_price: 190000,
-      stock_quantity: 75,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    },
-    {
-      id: 7,
-      name: 'Cha Ca Ho Tay',
-      sale_price: 165000,
-      stock_quantity: 95,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    },
-    {
-      id: 8,
-      name: 'Cha Ca Tay Ho',
-      sale_price: 175000,
-      stock_quantity: 88,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    },
-    {
-      id: 9,
-      name: 'Cha Ca Ba Dinh',
-      sale_price: 155000,
-      stock_quantity: 110,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    },
-    {
-      id: 10,
-      name: 'Cha Ca Dong Da',
-      sale_price: 145000,
-      stock_quantity: 130,
-      quantity: 0,
-      discount: 0,
-      total: 0
-    }
-  ]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [products, setProducts] = useState<TrackProduct[]>([]);
   const [totalOrderPrice, setTotalOrderPrice] = useState<number>(0);
+  const [newCustomerName, setNewCustomerName] = useState<string>('');
+  
+  // Snackbar state
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
   useEffect(() => {
     calculateTotalOrderPrice();
   }, [products]);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const response = await customerAPI.getCustomers();
+        setCustomers(response.data);
+      } catch (error) {
+        console.error('Failed to fetch customers:', error);
+      }
+    };
+
+    const fetchProducts = async () => {
+      try {
+        const response = await authAPI.getProducts();
+        const trackProducts: TrackProduct[] = ((response.data as unknown) as Product[]).map(product => ({
+          ...product,
+          quantity: 0,
+          discount: 0,
+          total: 0
+        }));
+        setProducts(trackProducts);
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+      }
+    };
+
+    fetchCustomers();
+    fetchProducts();
+  }, []);
 
   const handleQuantityChange = (productId: number, quantity: number) => {
     if (quantity < 0) return;
@@ -181,66 +117,95 @@ export default function Tracking() {
     event.preventDefault();
     
     if (!orderDate) {
-      alert('Please select an order date');
+      setSnackbarMessage('Please select an order date');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
       return;
     }
 
-    if (!customer) {
-      alert('Please select a customer');
+    if (!selectedCustomer && !newCustomerName) {
+      setSnackbarMessage('Please select a customer or enter a new customer name');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    const orderLines = products
+      .filter(product => product.quantity > 0)
+      .map(product => ({
+        product_id: product.id,
+        quantity: product.quantity,
+        sale_price: product.sale_price,
+        discount: product.discount,
+      }));
+
+    // Check if there are any valid order lines
+    if (orderLines.length === 0) {
+      setSnackbarMessage('No valid order lines to submit. Please add products with quantity greater than 0.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
       return;
     }
 
     const orderData = {
-      order_date: orderDate,
-      customer_id: customer.id,
-      products: products
-        .filter(product => product.quantity > 0)
-        .map(product => ({
-          id: product.id,
-          quantity: product.quantity,
-          discount: product.discount
-        }))
+      customer: selectedCustomer ? { id: selectedCustomer.id } : { name: newCustomerName },
+      ordered_date: orderDate,
+      order_lines: orderLines,
     };
 
     try {
-      const response = await fetch('/order/tracking', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      if (response.ok) {
-        alert('Order submitted successfully!');
+      const response = await axios.post('/api/order', orderData);
+      if (response.data.success) {
+        setSnackbarMessage(response.data.message);
+        setSnackbarSeverity('success');
         // Reset form
         setOrderDate(new Date().toISOString().split('T')[0]);
-        setCustomer(null);
+        setSelectedCustomer(null);
+        setNewCustomerName('');
         setProducts(prevProducts => 
           prevProducts.map(product => ({ ...product, quantity: 0, discount: 0, total: 0 }))
         );
       } else {
-        const error = await response.json();
-        alert(`Order submission failed: ${error.message}`);
+        setSnackbarMessage(`Order submission failed: ${response.data.message}`);
+        setSnackbarSeverity('error');
       }
     } catch (error) {
       console.error('Error submitting order:', error);
-      alert('Failed to submit order. Please try again.');
+      setSnackbarMessage('Failed to submit order. Please try again.');
+      setSnackbarSeverity('error');
+    } finally {
+      setSnackbarOpen(true);
     }
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
   };
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
       <Typography 
-        variant="h4" 
-        component="h1" 
-        gutterBottom
+        variant="h4"
         sx={{ 
-          mb: { xs: 2, sm: 4 },
-          fontSize: { xs: '1.25rem', sm: '2rem' },
-          fontWeight: 600,
-          color: 'text.primary',
-          textAlign: { xs: 'center', sm: 'left' }
+          mb: 3,
+          fontWeight: 700,
+          background: `linear-gradient(120deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          letterSpacing: '0.5px',
+          textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: -8,
+            left: 0,
+            width: '100%',
+            height: '4px',
+            background: theme.palette.primary.main,
+            borderRadius: '2px',
+          },
+          textAlign: 'center'
         }}
       >
         Track Sales
@@ -280,21 +245,40 @@ export default function Tracking() {
 
           <Autocomplete
             options={customers}
-            getOptionLabel={(option) => option.name}
-            value={customer}
-            onChange={(_, newValue) => setCustomer(newValue)}
-            filterOptions={(options, { inputValue }) => {
-              return options.filter(option =>
-                option.name.toLowerCase().includes(inputValue.toLowerCase())
-              );
+            getOptionLabel={(option: Customer | string) => 
+              typeof option === 'string' ? option : option.name
+            }
+            value={selectedCustomer}
+            onChange={(_, newValue: Customer | string | null) => {
+              if (typeof newValue === 'string') {
+                setNewCustomerName(newValue);
+                setSelectedCustomer(null);
+              } else {
+                setSelectedCustomer(newValue);
+                setNewCustomerName('');
+              }
             }}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
+            filterOptions={(options, { inputValue }) => {
+              return options.filter((option): option is Customer => {
+                return typeof option !== 'string' && option.name.toLowerCase().includes(inputValue.toLowerCase());
+              });
+            }}
+            isOptionEqualToValue={(option: string | Customer, value: string | Customer) => {
+              if (typeof option === 'string' || typeof value === 'string') return false;
+              return option.id === value.id;
+            }}
+            freeSolo
             renderInput={(params) => (
               <TextField
                 {...params}
                 label="Customer"
-                placeholder="Search customer name..."
+                placeholder="Search or enter new customer name..."
                 fullWidth
+                onChange={(e) => {
+                  if (!selectedCustomer) {
+                    setNewCustomerName(e.target.value);
+                  }
+                }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
@@ -302,12 +286,15 @@ export default function Tracking() {
                 }}
               />
             )}
-            renderOption={(props, option) => (
-              <li {...props}>
-                {option.name}
-              </li>
-            )}
-            noOptionsText="No customers found"
+            renderOption={(props, option: string | Customer) => {
+              if (typeof option === 'string') return null;
+              return (
+                <li {...props} key={option.id}>
+                  {option.name}
+                </li>
+              );
+            }}
+            noOptionsText="No customers found - New customer will be created"
             loadingText="Loading customers..."
             openText="Open"
             closeText="Close"
@@ -538,6 +525,17 @@ export default function Tracking() {
           </Button>
         </Box>
       </Paper>
+
+      <Snackbar 
+        open={snackbarOpen} 
+        autoHideDuration={3000} 
+        onClose={handleSnackbarClose} 
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 } 

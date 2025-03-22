@@ -23,4 +23,5 @@ class User(Base, TimeTrackingMixin, UserMixin):
         self.password = generate_password_hash(password)
 
     def check_password(self, password):
+        print(self.password, password)
         return check_password_hash(self.password, password)

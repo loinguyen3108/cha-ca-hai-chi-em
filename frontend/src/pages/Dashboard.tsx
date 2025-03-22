@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Grid,
   Paper,
@@ -34,6 +34,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { subDays } from 'date-fns';
+import { authAPI } from '../services/api';
 
 interface StatCardProps {
   icon: React.ReactElement<SvgIconProps>;
@@ -112,6 +113,7 @@ export default function Dashboard() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 7));
   const [endDate, setEndDate] = useState<Date | null>(new Date());
+  const [stats, setStats] = useState({ totalProducts: 0, totalImports: 0, totalOrders: 0 });
 
   const handleDateRangeSelect = (days: number) => {
     const end = new Date();
@@ -119,6 +121,19 @@ export default function Dashboard() {
     setStartDate(start);
     setEndDate(end);
   };
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await authAPI.getDashboardStats();
+        setStats(response.data);
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   // Mock data for the chart
   const chartData = [
@@ -135,24 +150,6 @@ export default function Dashboard() {
   const totalRevenue = chartData.reduce((sum, item) => sum + item.revenue, 0);
   const totalProfit = chartData.reduce((sum, item) => sum + item.profit, 0);
 
-  const stats = [
-    {
-      icon: <InventoryIcon />,
-      title: 'Total Products',
-      value: 150
-    },
-    {
-      icon: <InputIcon />,
-      title: 'Total Imports',
-      value: 12
-    },
-    {
-      icon: <ShoppingCartIcon />,
-      title: 'Total Orders',
-      value: 1234
-    }
-  ];
-
   return (
     <Box sx={{ 
       height: '100%',
@@ -160,14 +157,27 @@ export default function Dashboard() {
       backgroundColor: theme.palette.background.default
     }}>
       <Typography 
-        variant="h4" 
-        component="h1" 
-        gutterBottom
+        variant="h4"
         sx={{ 
-          mb: 4,
-          fontSize: { xs: '1.5rem', sm: '2rem', md: '2.25rem' },
-          fontWeight: 600,
-          color: 'text.primary'
+          mb: 3,
+          fontWeight: 700,
+          background: `linear-gradient(120deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          letterSpacing: '0.5px',
+          textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: -8,
+            left: 0,
+            width: '100%',
+            height: '4px',
+            background: theme.palette.primary.main,
+            borderRadius: '2px',
+          },
+          textAlign: 'center'
         }}
       >
         Dashboard
@@ -178,18 +188,33 @@ export default function Dashboard() {
         spacing={{ xs: 2, sm: 3 }}
         direction={isMobile ? 'column' : 'row'}
       >
-        {stats.map((stat, index) => (
-          <Grid 
-            item 
-            xs={12} 
-            sm={6} 
-            md={4} 
-            key={index}
-            sx={{ width: '100%' }}
-          >
-            <StatCard {...stat} />
-          </Grid>
-        ))}
+        <Grid 
+          item 
+          xs={12} 
+          sm={6} 
+          md={4} 
+          sx={{ width: '100%' }}
+        >
+          <StatCard icon={<InventoryIcon />} title="Total Products" value={stats.totalProducts} />
+        </Grid>
+        <Grid 
+          item 
+          xs={12} 
+          sm={6} 
+          md={4} 
+          sx={{ width: '100%' }}
+        >
+          <StatCard icon={<InputIcon />} title="Total Imports" value={stats.totalImports} />
+        </Grid>
+        <Grid 
+          item 
+          xs={12} 
+          sm={6} 
+          md={4} 
+          sx={{ width: '100%' }}
+        >
+          <StatCard icon={<ShoppingCartIcon />} title="Total Orders" value={stats.totalOrders} />
+        </Grid>
       </Grid>
 
       <Paper 

@@ -35,6 +35,7 @@ class ProductService(BaseService):
     def update_stock_quantity_from_import_lines(self, import_lines: List[ImportLine]):
         self.logger.info(f'Updating stock quantity from {len(import_lines)} import lines')
         for import_line in import_lines:
+            print(import_line.to_dict())
             product = self.repo.find_one(Product, Product.id == import_line.product_id)
             product.stock_quantity += import_line.quantity
             self.repo.upsert(product)

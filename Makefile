@@ -1,14 +1,20 @@
 .PHONY: all
 
 
-build-chaca:
-	docker build -t chaca-platform:local .
+server-up:
+	docker compose up -d --build
+
+server-down:
+	docker compose down
 
 install:
 	pip install -e .
 
 run-uwsgi:
-	uwsgi --http 0.0.0.0:8000 --master -p 2 -w src.wsgi:app
+	uwsgi --http 0.0.0.0:8080 --master -p 2 -w src.wsgi:app
+
+run-frontend:
+	cd frontend && npm run dev
 
 deploy:
 	@echo "Deploying code to ${TARGET_HOST}"

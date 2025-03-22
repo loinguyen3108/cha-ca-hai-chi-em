@@ -16,3 +16,6 @@ class ImportLineService(BaseService):
             import_lines.append(import_line)
         self.repo.bulk_insert(import_lines)
         return import_lines
+
+    def get_import_lines_by_importer_id(self, importer_id: int):
+        return self.repo.find(ImportLine, ImportLine.importer_id == importer_id)

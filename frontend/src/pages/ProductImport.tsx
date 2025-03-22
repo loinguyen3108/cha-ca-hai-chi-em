@@ -11,9 +11,12 @@ import {
   TableHead,
   TableRow,
   Button,
+  Snackbar,
+  Alert,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
+import { authAPI } from '../services/api';
 
 interface Product {
   id: number;
@@ -22,44 +25,6 @@ interface Product {
   stock_quantity: number;
 }
 
-// Mock data for testing
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: 1,
-    name: "Cá Chép",
-    unit_price: 120000,
-    stock_quantity: 50
-  },
-  {
-    id: 2,
-    name: "Cá Trắm",
-    unit_price: 150000,
-    stock_quantity: 30
-  },
-  {
-    id: 3,
-    name: "Cá Rô Phi",
-    unit_price: 80000,
-    stock_quantity: 100
-  },
-  {
-    id: 4,
-    name: "Cá Diêu Hồng",
-    unit_price: 95000,
-    stock_quantity: 45
-  },
-  {
-    id: 5,
-    name: "Cá Lóc",
-    unit_price: 180000,
-    stock_quantity: 25
-  }
-];
-
-interface ImportProduct extends Product {
-  quantity: number;
-  total: number;
-}
 
 export default function ProductImport() {
   const theme = useTheme();
@@ -67,115 +32,140 @@ export default function ProductImport() {
   
   const [importDate, setImportDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [otherExpenses, setOtherExpenses] = useState<number>(0);
-  const [products, setProducts] = useState<ImportProduct[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [importLines, setImportLines] = useState<{ productId: number; quantity: number }[]>([]);
   const [totalImportPrice, setTotalImportPrice] = useState<number>(0);
+  const [error, setError] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
   useEffect(() => {
-    // Fetch products when component mounts
+    const fetchProducts = async () => {
+      try {
+        const response = await authAPI.getProducts();
+        setProducts(response.data);
+        setImportLines(response.data.map(product => ({ productId: product.id, quantity: 0 })));
+      } catch (err) {
+        setError('Failed to load products');
+      }
+    };
+
     fetchProducts();
   }, []);
 
   useEffect(() => {
-    // Calculate total import price whenever products or other expenses change
     calculateTotalImportPrice();
-  }, [products, otherExpenses]);
+  }, [importLines, otherExpenses]);
 
-  const fetchProducts = async () => {
-    try {
-      // Using mock data instead of API call
-      const importProducts: ImportProduct[] = MOCK_PRODUCTS.map(product => ({
-        ...product,
-        quantity: 0,
-        total: 0
-      }));
-      setProducts(importProducts);
-    } catch (error) {
-      console.error('Error setting up mock products:', error);
-    }
+  const calculateTotalImportPrice = () => {
+    const total = importLines.reduce((sum, line) => {
+      const product = products.find(p => p.id === line.productId);
+      return sum + (product ? line.quantity * product.unit_price : 0);
+    }, 0);
+    setTotalImportPrice(total + otherExpenses);
   };
 
   const handleQuantityChange = (productId: number, quantity: number) => {
-    setProducts(prevProducts => prevProducts.map(product => {
-      if (product.id === productId) {
-        const total = quantity * product.unit_price;
-        return { ...product, quantity, total };
-      }
-      return product;
-    }));
+    setImportLines(prev => 
+      prev.map(line => 
+        line.productId === productId 
+          ? { ...line, quantity } 
+          : line
+      )
+    );
   };
 
-  const calculateTotalImportPrice = () => {
-    const productsTotal = products.reduce((sum, product) => sum + product.total, 0);
-    setTotalImportPrice(productsTotal + otherExpenses);
+  const getLineTotal = (productId: number): number => {
+    const line = importLines.find(l => l.productId === productId);
+    const product = products.find(p => p.id === productId);
+    return (line?.quantity || 0) * (product?.unit_price || 0);
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    
-    if (!importDate) {
-      alert('Please select an import date');
-      return;
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+  };
+
+  const handleImport = async (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent default form submission
+
+    // Validate other expenses
+    if (otherExpenses < 0) {
+        setSnackbarMessage('Other Expenses cannot be negative');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return; // Exit the function if validation fails
     }
 
-    const importData = {
-      import_date: importDate,
-      other_expenses: otherExpenses,
-      products: products
-        .filter(product => product.quantity > 0)
-        .map(product => ({
-          id: product.id,
-          quantity: product.quantity,
-          unit_price: product.unit_price
-        }))
-    };
-
     try {
-      const response = await fetch('/api/product/import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(importData),
-      });
+        const importLinesWithDetails = importLines
+            .filter(line => line.quantity > 0)
+            .map(line => {
+                const product = products.find(p => p.id === line.productId);
+                return {
+                    productId: line.productId,
+                    quantity: line.quantity,
+                    unit_price: product?.unit_price || 0,
+                    total_line_price: line.quantity * (product?.unit_price || 0),
+                };
+            });
 
-      if (response.ok) {
-        alert('Import successful!');
+        const response = await authAPI.importProducts({
+            import_lines: importLinesWithDetails,
+            import_date: importDate,
+            other_expenses: otherExpenses,
+        });
+
+        // Show success message
+        setSnackbarMessage(response.data.message);
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        
         // Reset form
-        setImportDate(new Date().toISOString().split('T')[0]);
+        setImportLines(importLines.map(line => ({ ...line, quantity: 0 })));
         setOtherExpenses(0);
-        setProducts(prevProducts => 
-          prevProducts.map(product => ({ ...product, quantity: 0, total: 0 }))
-        );
-      } else {
-        const error = await response.json();
-        alert(`Import failed: ${error.message}`);
-      }
-    } catch (error) {
-      console.error('Error submitting import:', error);
-      alert('Failed to submit import. Please try again.');
+        
+    } catch (err: any) {
+        setSnackbarMessage(err.response?.data?.message || 'Failed to import products');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
     }
   };
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
       <Typography 
-        variant="h4" 
-        component="h1" 
-        gutterBottom
+        variant="h4"
         sx={{ 
-          mb: { xs: 2, sm: 4 },
-          fontSize: { xs: '1.25rem', sm: '2rem' },
-          fontWeight: 600,
-          color: 'text.primary',
-          textAlign: { xs: 'center', sm: 'left' }
+          mb: 3,
+          fontWeight: 700,
+          background: `linear-gradient(120deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          letterSpacing: '0.5px',
+          textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: -8,
+            left: 0,
+            width: '100%',
+            height: '4px',
+            background: theme.palette.primary.main,
+            borderRadius: '2px',
+          },
+          textAlign: 'center'
         }}
       >
         Import Products
       </Typography>
 
+      {error && <Typography color="error">{error}</Typography>}
+
       <Paper 
         component="form" 
-        onSubmit={handleSubmit}
+        onSubmit={handleImport}
         sx={{ 
           p: { xs: 1, sm: 3 },
           mb: 3,
@@ -209,7 +199,10 @@ export default function ProductImport() {
             label="Other Expenses"
             type="number"
             value={otherExpenses}
-            onChange={(e) => setOtherExpenses(Number(e.target.value))}
+            onChange={(e) => {
+                const value = Number(e.target.value);
+                setOtherExpenses(value < 0 ? 0 : value); // Prevent negative values
+            }}
             fullWidth={isMobile}
             sx={{ 
               width: { xs: '100%', sm: '30%' },
@@ -264,134 +257,67 @@ export default function ProductImport() {
           >
             <TableHead>
               <TableRow>
-                <TableCell align="center" sx={{ width: { xs: '40px', sm: '50px' } }}>ID</TableCell>
+                <TableCell sx={{ width: { xs: '40px', sm: '50px' } }}>ID</TableCell>
                 <TableCell sx={{ 
-                  width: { xs: '40%', sm: '40%' },
+                  width: { xs: '30%', sm: '30%' },
                   textAlign: 'left',
                   minWidth: { xs: '120px', sm: '200px' }
                 }}>Name</TableCell>
                 <TableCell align="center" sx={{ 
-                  width: { xs: '25%', sm: '20%' },
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
+                  width: { xs: '20%', sm: '20%' },
                   minWidth: { xs: '80px', sm: '100px' }
-                }}>
-                  Price
-                </TableCell>
+                }}>Price</TableCell>
                 <TableCell align="center" sx={{ 
                   width: { xs: '20%', sm: '15%' },
                   minWidth: { xs: '60px', sm: '80px' }
-                }}>Qty</TableCell>
+                }}>Quantity</TableCell>
                 <TableCell align="center" sx={{ 
-                  display: { xs: 'none', sm: 'table-cell' },
-                  width: { sm: '15%' },
-                  minWidth: { sm: '100px' }
+                  width: { xs: '20%', sm: '15%' },
+                  minWidth: { xs: '80px', sm: '100px' }
                 }}>Total</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {products.map((product) => (
-                <React.Fragment key={product.id}>
-                  <TableRow>
-                    <TableCell align="center" sx={{ 
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                    }}>
-                      {product.id}
-                    </TableCell>
-                    <TableCell sx={{ 
-                      whiteSpace: 'normal',
-                      wordBreak: 'break-word',
-                      textAlign: 'left',
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                    }}>
-                      {product.name}
-                    </TableCell>
-                    <TableCell align="center" sx={{ 
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                    }}>
-                      {product.unit_price.toLocaleString()}
-                    </TableCell>
-                    <TableCell align="center">
-                      <TextField
-                        type="number"
-                        value={product.quantity}
-                        onChange={(e) => handleQuantityChange(product.id, Number(e.target.value))}
-                        inputProps={{ 
-                          min: 0,
-                          style: { 
-                            padding: '4px',
-                            textAlign: 'center',
-                            fontSize: '0.75rem',
-                            width: '100%'
-                          }
-                        }}
-                        sx={{ 
-                          width: '100%',
-                          '& .MuiOutlinedInput-root': {
-                            '& fieldset': {
-                              borderColor: 'rgba(0, 0, 0, 0.15)',
-                            },
-                            '&:hover fieldset': {
-                              borderColor: theme.palette.primary.main,
-                            },
-                          },
-                          '& .MuiOutlinedInput-input': {
-                            py: '4px',
-                            px: '2px',
-                          },
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell align="center" sx={{ 
-                      display: { xs: 'none', sm: 'table-cell' },
-                      whiteSpace: 'nowrap',
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                    }}>
-                      {product.total.toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow sx={{ 
-                    display: { xs: 'table-row', sm: 'none' },
-                    backgroundColor: theme.palette.grey[50],
-                    '& td': {
-                      py: 1,
-                      px: 2,
-                      border: 'none',
-                      fontSize: '0.75rem',
-                      textAlign: 'right',
-                      fontWeight: 500
-                    }
-                  }}>
-                    <TableCell colSpan={4}>
-                      Total: {product.total.toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                </React.Fragment>
+                <TableRow key={product.id}>
+                  <TableCell align="center">{product.id}</TableCell>
+                  <TableCell sx={{ textAlign: 'left' }}>{product.name}</TableCell>
+                  <TableCell align="center">
+                    {product.unit_price.toLocaleString()}
+                  </TableCell>
+                  <TableCell align="center">
+                    <TextField
+                      type="number"
+                      value={importLines.find(line => line.productId === product.id)?.quantity || 0}
+                      onChange={(e) => handleQuantityChange(product.id, Number(e.target.value))}
+                      inputProps={{ 
+                        min: 0,
+                        style: { 
+                          padding: '4px',
+                          textAlign: 'center',
+                          fontSize: '0.75rem',
+                          width: '100%'
+                        }
+                      }}
+                      sx={{ width: '100%' }}
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    {getLineTotal(product.id).toLocaleString()}
+                  </TableCell>
+                </TableRow>
               ))}
               <TableRow>
                 <TableCell 
-                  colSpan={isMobile ? 3 : 4} 
+                  colSpan={4} 
                   align="right"
-                  sx={{
-                    border: 'none',
-                    borderBottom: `1px solid ${theme.palette.grey[300]}`,
-                    pt: 2,
-                    pr: 2,
-                    fontWeight: 'bold',
-                  }}
+                  sx={{ fontWeight: 'bold' }}
                 >
                   Total Import Price:
                 </TableCell>
                 <TableCell 
                   align="center"
-                  sx={{
-                    border: 'none',
-                    borderBottom: `1px solid ${theme.palette.grey[300]}`,
-                    pt: 2,
-                    width: { xs: '20%', sm: '15%' },
-                    fontWeight: 'bold',
-                  }}
+                  sx={{ fontWeight: 'bold' }}
                 >
                   {totalImportPrice.toLocaleString()}
                 </TableCell>
@@ -412,10 +338,21 @@ export default function ProductImport() {
               }
             }}
           >
-            Submit Import
+            Import Products
           </Button>
         </Box>
       </Paper>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 } 

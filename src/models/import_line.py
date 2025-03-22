@@ -23,7 +23,7 @@ class ImportLine(Base, TimeTrackingMixin):
     product = relationship('Product', primaryjoin=product_join_str)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}:{self.id}'
+        return f'{self.__class__.__name__}:{self.importer_id}-{self.product_id}'
 
     def calculate_total_price(self):
         self.total_price = self.unit_price * self.quantity

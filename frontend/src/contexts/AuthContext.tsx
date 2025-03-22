@@ -1,26 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '../services/api';
-import { AxiosResponse, AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 import { Alert } from '@mui/material';
 
 interface User {
   id: number;
   username: string;
   isAuthenticated: boolean;
-}
-
-interface LoginResponse {
-  success: boolean;
-  message: string;
-  user: User;
-  redirect: string;
-}
-
-interface AuthResponse {
-  success: boolean;
-  message?: string;
-  user: User | null;
 }
 
 interface AuthContextType {

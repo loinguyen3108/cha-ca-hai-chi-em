@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
@@ -33,11 +33,6 @@ const DRAWER_WIDTH = {
   xs: '100%',    // Full width on extra small devices
   sm: '240px',   // Standard width on small devices and up
   lg: '280px',   // Slightly wider on large devices
-};
-
-const COLLAPSED_WIDTH = {
-  xs: '0px',     // Hidden on extra small devices
-  sm: '64px',    // Icon-only width on small devices and up
 };
 
 const menuItems = [

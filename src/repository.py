@@ -47,6 +47,9 @@ class PostgresRepository:
     def commit(self):
         self.session.commit()
 
+    def count(self, model_class):
+        return self.session.query(model_class).count()
+
     def delete(self, model_class, *criterion):
         try:
             result = self.session.execute(delete(model_class).where(*criterion))

@@ -39,10 +39,7 @@ export const SignUp: React.FC = () => {
     validationSchema,
     onSubmit: async (values) => {
       try {
-        await authAPI.register({
-          username: values.username,
-          password: values.password,
-        });
+        await authAPI.register(values.username, values.password);
         navigate('/signin', { state: { message: 'Registration successful! Please sign in.' } });
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to sign up');

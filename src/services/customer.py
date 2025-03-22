@@ -23,3 +23,7 @@ class CustomerService(BaseService):
     def get_customer_by_name(self, name: str) -> Customer:
         self.logger.info(f'Getting user {name}')
         return self.repo.find_one(Customer, func.lower(Customer.name) == name.lower())
+
+    def get_customer_by_id(self, id_: int) -> Customer:
+        self.logger.info(f'Getting customer {id_}')
+        return self.repo.find_one(Customer, Customer.id == id_)

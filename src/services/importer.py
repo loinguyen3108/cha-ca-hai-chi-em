@@ -1,4 +1,7 @@
 from functools import cached_property
+from datetime import datetime
+
+from sqlalchemy import and_
 
 from src.models import Importer
 from src.services import BaseService
@@ -25,27 +28,63 @@ class ImporterService(BaseService):
         importer = Importer(**importer_dict)
         return self.repo.upsert(importer)
 
-    def create_importer_from_request_form_form(self, request_form, current_user):
+    def create_importer_from_request(self, data, current_user):
+        import_lines = data['import_lines']
+        if not import_lines:
+            raise ValueError('No records to import! Please check your input data.')
 
+        import_date = datetime.strptime(data['import_date'], '%Y-%m-%d')
         importer = self.create_importer({
-            'imported_at': request_form.form['import_date'], 'imported_by': current_user.id,
-            'other_expenses': request_form.form['other_expenses']
+            'imported_at': import_date,
+            'imported_by': current_user.id,
+            'other_expenses': data['other_expenses'],
+            'status': Importer.STATUS_PENDING
         })
 
         import_lines_mapped = {}
-        for k, v in request_form.form.items():
-            if k.startswith('product_'):
-                product_id = int(k.split('_')[-1])
-                import_lines_mapped[product_id] = import_lines_mapped.get(product_id, {})
-                if 'quantity' in k:
-                    import_lines_mapped[product_id]['quantity'] = int(v)
-                if 'unit_price' in k:
-                    import_lines_mapped[product_id]['unit_price'] = float(v)
+        for line in import_lines:
+            product_id = line['productId']
+            quantity = line['quantity']
+            unit_price = float(line['unit_price'])
+
+            if quantity <= 0:
+                continue  # Skip lines with quantity <= 0
+
+            import_lines_mapped[product_id] = {
+                'quantity': quantity,
+                'unit_price': unit_price
+            }
 
         import_lines = self._process_import_lines(import_lines_mapped, importer)
         importer.status = Importer.STATUS_SUCCESS
         self.update_importer(importer)
         return importer, import_lines
+
+    def get_importers_by_date_range(self, start_date: datetime, end_date: datetime):
+        if not start_date or not end_date:
+            raise ValueError('Start date and end date are required!')
+
+        importers = self.repo.find(
+            Importer, and_(
+                Importer.imported_at >= start_date,
+                Importer.imported_at <= end_date
+            ),
+            order_by=Importer.imported_at.desc()
+        )
+
+        # sort by imported_at descending
+        importers.sort(key=lambda x: x.imported_at, reverse=True)
+
+        processed_importers = []
+        for importer in importers:
+            importer_dict = importer.to_dict()
+            importer_dict['imported_at'] = importer_dict['imported_at'].strftime('%Y-%m-%d')
+            importer_dict['total_lines'] = len(importer.import_lines)
+            importer_dict['other_expenses'] = int(importer_dict['other_expenses'])
+            importer_dict['status'] = 'Pending' if importer.status == 0 else 'Success'
+            processed_importers.append(importer_dict)
+
+        return processed_importers
 
     def update_importer(self, importer: Importer) -> Importer:
         return self.repo.upsert(importer)
