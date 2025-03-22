@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   frontend:
+    container_name: frontend
     hostname: frontend
     build:
       context: ./frontend
@@ -16,6 +17,7 @@ services:
       - VITE_API_URL=http://backend:8080
 
   backend:
+    container_name: backend
     hostname: backend
     build:
       context: .

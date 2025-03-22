@@ -842,7 +842,7 @@ export default function Warehouse() {
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
       <Typography 
-        variant="h4" 
+        variant="h4"
         sx={{ 
           mb: 3,
           fontWeight: 700,
@@ -851,7 +851,6 @@ export default function Warehouse() {
           WebkitTextFillColor: 'transparent',
           letterSpacing: '0.5px',
           textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
-          display: 'inline-block',
           position: 'relative',
           '&::after': {
             content: '""',

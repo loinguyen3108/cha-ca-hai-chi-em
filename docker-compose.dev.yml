@@ -19,27 +19,3 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
-
-  chaca-platform:
-    image: chaca-platform:local
-    container_name: chaca-platform
-    restart: always
-    ports:
-      - "8000:8000"
-    depends_on:
-      - postgres
-    env_file:
-      - .env.dev
-    entrypoint: /bin/bash
-    command:
-      - -c
-      - |
-        uwsgi --http 0.0.0.0:8000 --master -p 2 -w src.wsgi:app
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 128M

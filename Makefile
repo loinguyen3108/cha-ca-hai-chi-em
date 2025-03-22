@@ -1,4 +1,8 @@
 .PHONY: all
+.SILENT:
+ARGS = `arg="$(filter-out $@,$(MAKECMDGOALS))" && echo $${arg:-${1}}`
+%:
+	@:
 
 
 server-up:
@@ -18,4 +22,4 @@ run-frontend:
 
 deploy:
 	@echo "Deploying code to ${TARGET_HOST}"
-	rsync -pthrvz --delete --exclude=*.egg-info --exclude=.* --exclude=.pytest_cache --exclude=*.pyc --exclude=*.md --exclude=__pycache__ --exclude=migration ./* ${TARGET_HOST}:~/code
+	rsync -pthrvz --delete --exclude=*.egg-info --exclude=frontend/node_modules --exclude=.* --exclude=.pytest_cache --exclude=*.pyc --exclude=*.md --exclude=__pycache__ --exclude=migration ./* ${TARGET_HOST}:~/code
