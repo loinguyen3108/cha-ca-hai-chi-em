@@ -40,14 +40,14 @@ interface TrackProduct extends Product {
 export default function Tracking() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  
+
   const [orderDate, setOrderDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [products, setProducts] = useState<TrackProduct[]>([]);
   const [totalOrderPrice, setTotalOrderPrice] = useState<number>(0);
   const [newCustomerName, setNewCustomerName] = useState<string>('');
-  
+
   // Snackbar state
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -115,7 +115,7 @@ export default function Tracking() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    
+
     if (!orderDate) {
       setSnackbarMessage('Please select an order date');
       setSnackbarSeverity('error');
@@ -154,7 +154,7 @@ export default function Tracking() {
     };
 
     try {
-      const response = await axios.post('/api/order', orderData);
+      const response = await axios.post('/api/v1/order', orderData);
       if (response.data.success) {
         setSnackbarMessage(response.data.message);
         setSnackbarSeverity('success');
@@ -162,7 +162,7 @@ export default function Tracking() {
         setOrderDate(new Date().toISOString().split('T')[0]);
         setSelectedCustomer(null);
         setNewCustomerName('');
-        setProducts(prevProducts => 
+        setProducts(prevProducts =>
           prevProducts.map(product => ({ ...product, quantity: 0, discount: 0, total: 0 }))
         );
       } else {
@@ -184,9 +184,9 @@ export default function Tracking() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
-      <Typography 
+      <Typography
         variant="h4"
-        sx={{ 
+        sx={{
           mb: 3,
           fontWeight: 700,
           background: `linear-gradient(120deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
@@ -211,10 +211,10 @@ export default function Tracking() {
         Track Sales
       </Typography>
 
-      <Paper 
-        component="form" 
+      <Paper
+        component="form"
         onSubmit={handleSubmit}
-        sx={{ 
+        sx={{
           p: { xs: 1, sm: 3 },
           mb: 3,
           backgroundColor: 'white',
@@ -222,7 +222,7 @@ export default function Tracking() {
           overflow: 'hidden'
         }}
       >
-        <Box sx={{ 
+        <Box sx={{
           mb: 3,
           display: 'flex',
           flexDirection: 'column',
@@ -235,7 +235,7 @@ export default function Tracking() {
             value={orderDate}
             onChange={(e) => setOrderDate(e.target.value)}
             fullWidth
-            sx={{ 
+            sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: 1,
               }
@@ -245,7 +245,7 @@ export default function Tracking() {
 
           <Autocomplete
             options={customers}
-            getOptionLabel={(option: Customer | string) => 
+            getOptionLabel={(option: Customer | string) =>
               typeof option === 'string' ? option : option.name
             }
             value={selectedCustomer}
@@ -302,8 +302,8 @@ export default function Tracking() {
           />
         </Box>
 
-        <TableContainer 
-          sx={{ 
+        <TableContainer
+          sx={{
             mb: 3,
             '& .MuiTable-root': {
               borderCollapse: 'collapse',
@@ -314,7 +314,7 @@ export default function Tracking() {
             }
           }}
         >
-          <Table 
+          <Table
             sx={{
               width: '100%',
               tableLayout: 'fixed',
@@ -341,12 +341,12 @@ export default function Tracking() {
             <TableHead>
               <TableRow>
                 <TableCell align="center" sx={{ width: { xs: '40px', sm: '50px' } }}>ID</TableCell>
-                <TableCell sx={{ 
+                <TableCell sx={{
                   width: { xs: '40%', sm: '40%' },
                   textAlign: 'left',
                   minWidth: { xs: '120px', sm: '200px' }
                 }}>Product Name</TableCell>
-                <TableCell align="center" sx={{ 
+                <TableCell align="center" sx={{
                   width: { xs: '25%', sm: '20%' },
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -355,15 +355,15 @@ export default function Tracking() {
                 }}>
                   Sale Price
                 </TableCell>
-                <TableCell align="center" sx={{ 
+                <TableCell align="center" sx={{
                   width: { xs: '20%', sm: '15%' },
                   minWidth: { xs: '60px', sm: '80px' }
                 }}>Quantity</TableCell>
-                <TableCell align="center" sx={{ 
+                <TableCell align="center" sx={{
                   width: { xs: '20%', sm: '15%' },
                   minWidth: { xs: '60px', sm: '80px' }
                 }}>Discount</TableCell>
-                <TableCell align="center" sx={{ 
+                <TableCell align="center" sx={{
                   display: { xs: 'none', sm: 'table-cell' },
                   width: { sm: '15%' },
                   minWidth: { sm: '100px' }
@@ -374,12 +374,12 @@ export default function Tracking() {
               {products.map((product) => (
                 <React.Fragment key={product.id}>
                   <TableRow>
-                    <TableCell align="center" sx={{ 
+                    <TableCell align="center" sx={{
                       fontSize: { xs: '0.75rem', sm: '0.875rem' }
                     }}>
                       {product.id}
                     </TableCell>
-                    <TableCell sx={{ 
+                    <TableCell sx={{
                       whiteSpace: 'normal',
                       wordBreak: 'break-word',
                       textAlign: 'left',
@@ -387,7 +387,7 @@ export default function Tracking() {
                     }}>
                       {product.name}
                     </TableCell>
-                    <TableCell align="center" sx={{ 
+                    <TableCell align="center" sx={{
                       fontSize: { xs: '0.75rem', sm: '0.875rem' }
                     }}>
                       {product.sale_price.toLocaleString()}
@@ -397,16 +397,16 @@ export default function Tracking() {
                         type="number"
                         value={product.quantity}
                         onChange={(e) => handleQuantityChange(product.id, Number(e.target.value))}
-                        inputProps={{ 
+                        inputProps={{
                           min: 0,
-                          style: { 
+                          style: {
                             padding: '4px',
                             textAlign: 'center',
                             fontSize: '0.75rem',
                             width: '100%'
                           }
                         }}
-                        sx={{ 
+                        sx={{
                           width: '100%',
                           '& .MuiOutlinedInput-root': {
                             '& fieldset': {
@@ -428,16 +428,16 @@ export default function Tracking() {
                         type="number"
                         value={product.discount}
                         onChange={(e) => handleDiscountChange(product.id, Number(e.target.value))}
-                        inputProps={{ 
+                        inputProps={{
                           min: 0,
-                          style: { 
+                          style: {
                             padding: '4px',
                             textAlign: 'center',
                             fontSize: '0.75rem',
                             width: '100%'
                           }
                         }}
-                        sx={{ 
+                        sx={{
                           width: '100%',
                           '& .MuiOutlinedInput-root': {
                             '& fieldset': {
@@ -454,7 +454,7 @@ export default function Tracking() {
                         }}
                       />
                     </TableCell>
-                    <TableCell align="center" sx={{ 
+                    <TableCell align="center" sx={{
                       display: { xs: 'none', sm: 'table-cell' },
                       whiteSpace: 'nowrap',
                       fontSize: { xs: '0.75rem', sm: '0.875rem' }
@@ -462,7 +462,7 @@ export default function Tracking() {
                       {product.total.toLocaleString()}
                     </TableCell>
                   </TableRow>
-                  <TableRow sx={{ 
+                  <TableRow sx={{
                     display: { xs: 'table-row', sm: 'none' },
                     backgroundColor: theme.palette.grey[50],
                     '& td': {
@@ -481,8 +481,8 @@ export default function Tracking() {
                 </React.Fragment>
               ))}
               <TableRow>
-                <TableCell 
-                  colSpan={isMobile ? 4 : 5} 
+                <TableCell
+                  colSpan={isMobile ? 4 : 5}
                   align="right"
                   sx={{
                     border: 'none',
@@ -493,7 +493,7 @@ export default function Tracking() {
                 >
                   Total Order Price:
                 </TableCell>
-                <TableCell 
+                <TableCell
                   align="center"
                   sx={{
                     border: 'none',
@@ -510,9 +510,9 @@ export default function Tracking() {
         </TableContainer>
 
         <Box sx={{ mt: 3, textAlign: 'right' }}>
-          <Button 
-            type="submit" 
-            variant="contained" 
+          <Button
+            type="submit"
+            variant="contained"
             size="large"
             sx={{
               backgroundColor: theme.palette.primary.main,
@@ -526,10 +526,10 @@ export default function Tracking() {
         </Box>
       </Paper>
 
-      <Snackbar 
-        open={snackbarOpen} 
-        autoHideDuration={3000} 
-        onClose={handleSnackbarClose} 
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>

@@ -135,7 +135,7 @@ class OrderService(BaseService):
             orders = self.repo.find(Order, date_filter, order_by=Order.order_at.desc())
             return orders
         except Exception as e:
-            print(f"Error fetching orders by date range: {e}")
+            self.logger.error(f"Error fetching orders by date range: {e}")
             return []
 
     def get_order_by_id(self, order_id):

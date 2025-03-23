@@ -42,5 +42,5 @@ class OrderLineService(BaseService):
             
             return order_lines
         except Exception as e:
-            print(f"Error fetching order lines: {e}")
+            self.logger.error(f"Error fetching order lines: {e}")
             return []
