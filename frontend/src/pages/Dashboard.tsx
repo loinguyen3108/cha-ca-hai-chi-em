@@ -33,7 +33,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { subDays } from 'date-fns';
+import { format, subDays, eachDayOfInterval, parseISO, differenceInMonths, endOfWeek, endOfMonth, eachWeekOfInterval, eachMonthOfInterval } from 'date-fns';
+import { getDashboardMetrics, DashboardMetrics } from '../services/dashboard';
 import { authAPI } from '../services/api';
 
 interface StatCardProps {
@@ -114,6 +115,8 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState<Date | null>(subDays(new Date(), 7));
   const [endDate, setEndDate] = useState<Date | null>(new Date());
   const [stats, setStats] = useState({ totalProducts: 0, totalImports: 0, totalOrders: 0 });
+  const [metrics, setMetrics] = useState<DashboardMetrics['metrics'] | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleDateRangeSelect = (days: number) => {
     const end = new Date();
@@ -122,6 +125,7 @@ export default function Dashboard() {
     setEndDate(end);
   };
 
+  // Original stats fetch
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -135,20 +139,114 @@ export default function Dashboard() {
     fetchStats();
   }, []);
 
-  // Mock data for the chart
-  const chartData = [
-    { date: '2024-03-01', revenue: 4000, profit: 2400 },
-    { date: '2024-03-02', revenue: 3000, profit: 1398 },
-    { date: '2024-03-03', revenue: 2000, profit: 9800 },
-    { date: '2024-03-04', revenue: 2780, profit: 3908 },
-    { date: '2024-03-05', revenue: 1890, profit: 4800 },
-    { date: '2024-03-06', revenue: 2390, profit: 3800 },
-    { date: '2024-03-07', revenue: 3490, profit: 4300 },
-  ];
+  // New metrics fetch for revenue and profit
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      if (!startDate || !endDate) return;
+      
+      try {
+        setLoading(true);
+        const response = await getDashboardMetrics(
+          format(startDate, 'yyyy-MM-dd'),
+          format(endDate, 'yyyy-MM-dd')
+        );
+        if (response.success) {
+          setMetrics(response.metrics);
+        }
+      } catch (error) {
+        console.error('Error fetching metrics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Calculate totals from chart data
-  const totalRevenue = chartData.reduce((sum, item) => sum + item.revenue, 0);
-  const totalProfit = chartData.reduce((sum, item) => sum + item.profit, 0);
+    fetchMetrics();
+  }, [startDate, endDate]);
+
+  // Format chart data with dynamic grouping based on date range
+  const chartData = React.useMemo(() => {
+    if (!metrics?.sales.order_at_list || !startDate || !endDate) {
+      return [];
+    }
+
+    const monthsDiff = differenceInMonths(endDate, startDate);
+    
+    // Create a map of all data points
+    const dataMap = new Map(
+      metrics.sales.order_at_list.map(item => [
+        format(parseISO(item.order_at), 'yyyy-MM-dd'),
+        item
+      ])
+    );
+
+    // Helper function to sum up values for a date range
+    const sumValuesForRange = (start: Date, end: Date) => {
+      let totalRevenue = 0;
+      let totalProfit = 0;
+      
+      const daysInRange = eachDayOfInterval({ start, end });
+      daysInRange.forEach(date => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const data = dataMap.get(dateStr);
+        if (data) {
+          totalRevenue += data.total_revenue;
+          totalProfit += data.total_profit;
+        }
+      });
+
+      return {
+        revenue: totalRevenue,
+        profit: totalProfit
+      };
+    };
+
+    // Group by days (default for <= 1 month)
+    if (monthsDiff <= 1) {
+      return eachDayOfInterval({ start: startDate, end: endDate }).map(date => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const data = dataMap.get(dateStr);
+        return {
+          date: dateStr,
+          revenue: data?.total_revenue || 0,
+          profit: data?.total_profit || 0,
+          label: format(date, 'dd/MM')
+        };
+      });
+    }
+    
+    // Group by weeks (for 1-6 months)
+    if (monthsDiff <= 6) {
+      return eachWeekOfInterval(
+        { start: startDate, end: endDate },
+        { weekStartsOn: 1 } // Week starts on Monday
+      ).map(weekStart => {
+        const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+        const values = sumValuesForRange(weekStart, weekEnd);
+        return {
+          date: format(weekStart, 'yyyy-MM-dd'),
+          revenue: values.revenue,
+          profit: values.profit,
+          label: `${format(weekStart, 'dd/MM')} - ${format(weekEnd, 'dd/MM')}`
+        };
+      });
+    }
+    
+    // Group by months (for > 6 months)
+    return eachMonthOfInterval({ start: startDate, end: endDate }).map(monthStart => {
+      const monthEnd = endOfMonth(monthStart);
+      const values = sumValuesForRange(monthStart, monthEnd);
+      return {
+        date: format(monthStart, 'yyyy-MM-dd'),
+        revenue: values.revenue,
+        profit: values.profit,
+        label: format(monthStart, 'MM/yyyy')
+      };
+    });
+  }, [metrics, startDate, endDate]);
+
+  // Use metrics directly from backend
+  const totalRevenue = metrics?.sales.total_revenue || 0;
+  const totalProfit = metrics?.sales.total_profit || 0;
 
   return (
     <Box sx={{ 
@@ -195,7 +293,11 @@ export default function Dashboard() {
           md={4} 
           sx={{ width: '100%' }}
         >
-          <StatCard icon={<InventoryIcon />} title="Total Products" value={stats.totalProducts} />
+          <StatCard 
+            icon={<InventoryIcon />} 
+            title="Total Products" 
+            value={stats.totalProducts} 
+          />
         </Grid>
         <Grid 
           item 
@@ -204,7 +306,11 @@ export default function Dashboard() {
           md={4} 
           sx={{ width: '100%' }}
         >
-          <StatCard icon={<InputIcon />} title="Total Imports" value={stats.totalImports} />
+          <StatCard 
+            icon={<InputIcon />} 
+            title="Total Imports" 
+            value={stats.totalImports} 
+          />
         </Grid>
         <Grid 
           item 
@@ -213,7 +319,11 @@ export default function Dashboard() {
           md={4} 
           sx={{ width: '100%' }}
         >
-          <StatCard icon={<ShoppingCartIcon />} title="Total Orders" value={stats.totalOrders} />
+          <StatCard 
+            icon={<ShoppingCartIcon />} 
+            title="Total Orders" 
+            value={stats.totalOrders} 
+          />
         </Grid>
       </Grid>
 
@@ -320,8 +430,8 @@ export default function Dashboard() {
                       color: '#7C7CFF',
                       fontSize: { xs: '1.75rem', sm: '2rem' }
                     }}
-                  >
-                    ${totalRevenue.toLocaleString()}
+                  > 
+                    {totalRevenue.toLocaleString()} VND
                   </Typography>
                 </Box>
               </Box>
@@ -370,7 +480,7 @@ export default function Dashboard() {
                       fontSize: { xs: '1.75rem', sm: '2rem' }
                     }}
                   >
-                    ${totalProfit.toLocaleString()}
+                    {totalProfit.toLocaleString()} VND
                   </Typography>
                 </Box>
               </Box>
@@ -379,49 +489,134 @@ export default function Dashboard() {
         </Box>
 
         <Box sx={{ height: 400, width: '100%' }}>
-          <ResponsiveContainer>
-            <LineChart
-              data={chartData}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
+          {chartData.length > 0 ? (
+            <Box
+              sx={{
+                width: '100%',
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                WebkitOverflowScrolling: 'touch', // For smooth scrolling on iOS
+                '&::-webkit-scrollbar': {
+                  height: 8,
+                },
+                '&::-webkit-scrollbar-track': {
+                  backgroundColor: '#f1f1f1',
+                  borderRadius: 4,
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: '#888',
+                  borderRadius: 4,
+                  '&:hover': {
+                    backgroundColor: '#555',
+                  },
+                },
               }}
             >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date"
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'white',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px'
-                }}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="#8884d8"
-                activeDot={{ r: 8 }}
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="profit"
-                stroke="#82ca9d"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+              <Box sx={{ 
+                height: 400,
+                // Ensure minimum width for mobile to allow proper data display
+                minWidth: {
+                  xs: chartData.length <= 7 ? '100%' : `${chartData.length * 50}px`,
+                  sm: '100%'
+                },
+              }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={chartData}
+                    margin={{
+                      top: 20,
+                      right: 30,
+                      left: 20,
+                      bottom: 20,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="date"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => {
+                        const item = chartData.find(d => d.date === value);
+                        return item?.label || '';
+                      }}
+                      interval="preserveStartEnd"
+                      minTickGap={30}
+                      angle={isMobile ? -45 : 0}
+                      textAnchor={isMobile ? "end" : "middle"}
+                      height={isMobile ? 60 : 30}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => {
+                        try {
+                          return `${(value / 1000000).toFixed(1)}M`;
+                        } catch (e) {
+                          return '0';
+                        }
+                      }}
+                      width={80}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        padding: '10px',
+                        fontSize: isMobile ? 12 : 14,
+                      }}
+                      formatter={(value: number) => [`${value.toLocaleString()} VND`, undefined]}
+                      labelFormatter={(label) => {
+                        try {
+                          return format(parseISO(label), 'dd/MM/yyyy');
+                        } catch (e) {
+                          return '';
+                        }
+                      }}
+                    />
+                    <Legend 
+                      verticalAlign="top"
+                      height={36}
+                      wrapperStyle={{
+                        paddingBottom: '20px',
+                        fontSize: isMobile ? 12 : 14,
+                      }}
+                    />
+                    <Line
+                      name="Revenue"
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#7C7CFF"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: isMobile ? 4 : 6, strokeWidth: 2 }}
+                    />
+                    <Line
+                      name="Profit"
+                      type="monotone"
+                      dataKey="profit"
+                      stroke="#52C48A"
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: isMobile ? 4 : 6, strokeWidth: 2 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            </Box>
+          ) : (
+            <Box 
+              sx={{ 
+                height: '100%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: 'text.secondary'
+              }}
+            >
+              <Typography variant="body1">
+                {loading ? 'Loading chart data...' : 'No data available for the selected date range'}
+              </Typography>
+            </Box>
+          )}
         </Box>
       </Paper>
     </Box>

@@ -6,11 +6,13 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 from src.services.user import UserService
 from src.services.importer import ImporterService
+from src.services.dashboard import DashboardService
 
 blueprint = Blueprint('ChaCa', __name__, template_folder='templates')
 
 user_service = UserService()
 logger = getLogger(__name__)
+dashboard_service = DashboardService()
 
 
 @blueprint.route('/auth/login', methods=['POST'])
@@ -343,3 +345,20 @@ def get_order_lines(order_id):
         'success': True,
         'order_lines': order_lines_dict
     }), 200
+
+
+@blueprint.route('/dashboard/metrics', methods=['GET'])
+@login_required
+def get_dashboard_metrics():
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if not start_date or not end_date:
+        return jsonify({
+            'success': False,
+            'message': 'start_date and end_date are required'
+        }), 400
+    
+    metrics = dashboard_service.get_metrics(start_date, end_date)
+    print(metrics)
+    return jsonify(metrics)

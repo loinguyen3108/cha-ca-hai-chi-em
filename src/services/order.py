@@ -143,3 +143,40 @@ class OrderService(BaseService):
         Get a single order by ID
         """
         return self.repo.find_one(Order, Order.id == order_id)
+
+    def get_sales_metrics(self, start_date, end_date):
+        """
+        Get sales metrics for a given date range
+        """
+        # Get total quantity and total revenue and calculate total cost
+        query = """
+            SELECT 
+                o.order_at,
+                SUM(ol.quantity) as total_quantity,
+                SUM(ol.quantity * ol.sale_price) as total_revenue,
+                SUM(ol.quantity * ol.sale_price) - SUM(ol.quantity * p.unit_price) - SUM(ol.discount) as total_profit
+            FROM order_line ol
+            JOIN "order" o ON ol.order_id = o.id
+            JOIN product p ON ol.product_id = p.id
+            WHERE o.order_at >= :start_date AND o.order_at <= :end_date
+            GROUP BY o.order_at
+        """
+        results = self.repo.execute(query, {'start_date': start_date, 'end_date': end_date})
+        # results is total quantity and total revenue for all and grouped by order_at
+        transformed_results = {
+            'total_quantity': 0,
+            'total_revenue': 0,
+            'total_profit': 0,
+            'order_at_list': []
+        }
+        for result in results:
+            result = dict(result)
+            result['order_at'] = result['order_at'].strftime('%Y-%m-%d')
+            result['total_revenue'] = float(result['total_revenue'])
+            result['total_profit'] = float(result['total_profit'])
+            transformed_results['total_quantity'] += result['total_quantity']
+            transformed_results['total_revenue'] += result['total_revenue']
+            transformed_results['total_profit'] += result['total_profit']
+            transformed_results['order_at_list'].append(result)
+        
+        return transformed_results

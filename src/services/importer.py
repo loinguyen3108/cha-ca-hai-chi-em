@@ -89,6 +89,35 @@ class ImporterService(BaseService):
     def update_importer(self, importer: Importer) -> Importer:
         return self.repo.upsert(importer)
 
+    def get_import_metrics(self, start_date: datetime, end_date: datetime):
+        """
+        Get importer metrics for a given date range
+        """
+        query = """
+            SELECT 
+                i.imported_at,
+                SUM(il.quantity) as total_quantity,
+                SUM(il.quantity * il.unit_price) as total_cost
+            FROM import_line il
+            JOIN importer i ON il.importer_id = i.id
+            WHERE i.imported_at >= :start_date AND i.imported_at <= :end_date
+            GROUP BY i.imported_at
+        """
+        results  = self.repo.execute(query, {'start_date': start_date, 'end_date': end_date})
+        transformed_results = {
+            'total_quantity': 0,
+            'total_cost': 0,
+            'import_at_list': []
+        }
+        for result in results:
+            result = dict(result)
+            result['imported_at'] = result['imported_at'].strftime('%Y-%m-%d')
+            result['total_cost'] = float(result['total_cost'])
+            transformed_results['total_quantity'] += result['total_quantity']
+            transformed_results['total_cost'] += result['total_cost']
+            transformed_results['import_at_list'].append(result)
+        return transformed_results
+
     def _process_import_lines(self, import_lines_mapped: dict, importer: Importer):
         import_lines_dict = []
         for product_id, import_line in import_lines_mapped.items():
